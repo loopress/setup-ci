@@ -1,15 +1,15 @@
-# WDX CircleCI Orb Definition
-# Published at: wdx-dev/wdx on CircleCI Orb Registry
+# LPS CircleCI Orb Definition
+# Published at: lps-dev/lps on CircleCI Orb Registry
 
 version: 2.1
 
 description: >
-  Bootstrap a WordPress instance and apply WDX configuration.
-  https://wordpressdx.dev
+  Bootstrap a WordPress instance and apply LPS configuration.
+  https://loopress.dev
 
 display:
-  home_url: https://wordpressdx.dev
-  source_url: https://github.com/wdx-dev/action
+  home_url: https://loopress.dev
+  source_url: https://github.com/loopress/setup-ci
 
 executors:
   default:
@@ -18,7 +18,7 @@ executors:
 
 commands:
   setup:
-    description: Bootstrap WordPress and apply WDX config
+    description: Bootstrap WordPress and apply LPS config
     parameters:
       wp-version:
         type: string
@@ -28,17 +28,17 @@ commands:
         default: 8080
       token:
         type: env_var_name
-        default: WDX_TOKEN
+        default: LPS_TOKEN
     steps:
       - run:
           name: Start WordPress stack
           command: |
-            cat > /tmp/wdx-compose.yml << EOF
+            cat > /tmp/lps-compose.yml << EOF
             services:
               mysql:
                 image: mysql:8.0
                 environment:
-                  MYSQL_ROOT_PASSWORD: wdx
+                  MYSQL_ROOT_PASSWORD: lps
                   MYSQL_DATABASE: wordpress
                 healthcheck:
                   test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
@@ -54,11 +54,11 @@ commands:
                   WORDPRESS_DB_HOST: mysql
                   WORDPRESS_DB_NAME: wordpress
                   WORDPRESS_DB_USER: root
-                  WORDPRESS_DB_PASSWORD: wdx
+                  WORDPRESS_DB_PASSWORD: lps
                 ports:
                   - "<< parameters.wp-port >>:80"
             EOF
-            docker compose -f /tmp/wdx-compose.yml up -d
+            docker compose -f /tmp/lps-compose.yml up -d
       - run:
           name: Wait for WordPress
           command: |
@@ -67,48 +67,48 @@ commands:
       - run:
           name: Install WordPress
           command: |
-            CONTAINER=$(docker compose -f /tmp/wdx-compose.yml ps -q wordpress)
+            CONTAINER=$(docker compose -f /tmp/lps-compose.yml ps -q wordpress)
             docker exec "$CONTAINER" bash -c "
               curl -sO https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
               chmod +x wp-cli.phar && mv wp-cli.phar /usr/local/bin/wp
             "
             docker exec "$CONTAINER" wp core install \
-              --url="http://localhost" --title="WDX CI" \
+              --url="http://localhost" --title="LPS CI" \
               --admin_user="admin" --admin_password="admin" \
-              --admin_email="ci@wdx.dev" --skip-email --allow-root
+              --admin_email="ci@lps.dev" --skip-email --allow-root
             docker exec "$CONTAINER" wp option update siteurl "http://localhost:<< parameters.wp-port >>" --allow-root
             docker exec "$CONTAINER" wp option update home "http://localhost:<< parameters.wp-port >>" --allow-root
-            APP_PASS=$(docker exec "$CONTAINER" wp user application-password create admin "WDX CI" \
+            APP_PASS=$(docker exec "$CONTAINER" wp user application-password create admin "LPS CI" \
               --porcelain --allow-root)
-            mkdir -p ~/.wdx
+            mkdir -p ~/.lps
             printf '{"sites":[{"id":"ci","url":"http://localhost:<< parameters.wp-port >>","username":"admin","app_password":"%s"}]}\n' \
-              "$APP_PASS" > ~/.wdx/sites.json
+              "$APP_PASS" > ~/.lps/sites.json
       - run:
-          name: Install WDX CLI
-          command: npm install -g wdx
+          name: Install LPS CLI
+          command: npm install -g lps
       - run:
-          name: Push WDX config
-          command: wdx push
+          name: Push LPS config
+          command: lps push
 
   deploy:
-    description: Deploy WDX config to a real WordPress site
+    description: Deploy LPS config to a real WordPress site
     parameters:
       site:
         type: string
         default: "staging"
       token:
         type: env_var_name
-        default: WDX_TOKEN
+        default: LPS_TOKEN
     steps:
       - run:
-          name: Install WDX CLI
-          command: npm install -g wdx
+          name: Install LPS CLI
+          command: npm install -g lps
       - run:
-          name: Push WDX config
-          command: wdx push --site << parameters.site >>
+          name: Push LPS config
+          command: lps push --site << parameters.site >>
       - run:
           name: Verify deploy
-          command: wdx diff --site << parameters.site >>
+          command: lps diff --site << parameters.site >>
 
 jobs:
   test:

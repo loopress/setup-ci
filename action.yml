@@ -1,5 +1,5 @@
-name: "WDX Setup"
-description: "Bootstrap a WordPress instance and apply WDX configuration"
+name: "LPS Setup"
+description: "Bootstrap a WordPress instance and apply LPS configuration"
 
 branding:
   icon: "zap"
@@ -7,13 +7,13 @@ branding:
 
 inputs:
   token:
-    description: "WDX cloud token (not required for CI testing — only needed for deploying to real sites)"
+    description: "LPS cloud token (not required for CI testing — only needed for deploying to real sites)"
     required: false
   wp-version:
     description: "WordPress version"
     default: "latest"
   site-id:
-    description: "WDX site ID"
+    description: "LPS site ID"
     default: "ci"
   port:
     description: "WordPress port on the runner"
@@ -30,12 +30,12 @@ runs:
     - name: Start WordPress stack
       shell: bash
       run: |
-        cat > /tmp/wdx-compose.yml << EOF
+        cat > /tmp/lps-compose.yml << EOF
         services:
           mysql:
             image: mysql:8.0
             environment:
-              MYSQL_ROOT_PASSWORD: wdx
+              MYSQL_ROOT_PASSWORD: lps
               MYSQL_DATABASE: wordpress
             healthcheck:
               test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
@@ -52,12 +52,12 @@ runs:
               WORDPRESS_DB_HOST: mysql
               WORDPRESS_DB_NAME: wordpress
               WORDPRESS_DB_USER: root
-              WORDPRESS_DB_PASSWORD: wdx
+              WORDPRESS_DB_PASSWORD: lps
             ports:
               - "${{ inputs.port }}:80"
         EOF
 
-        docker compose -f /tmp/wdx-compose.yml up -d
+        docker compose -f /tmp/lps-compose.yml up -d
 
     - name: Wait for WordPress
       shell: bash
@@ -70,7 +70,7 @@ runs:
     - name: Install WP-CLI in container
       shell: bash
       run: |
-        CONTAINER=$(docker compose -f /tmp/wdx-compose.yml ps -q wordpress)
+        CONTAINER=$(docker compose -f /tmp/lps-compose.yml ps -q wordpress)
         docker exec "$CONTAINER" bash -c "
           curl -sO https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
           chmod +x wp-cli.phar && mv wp-cli.phar /usr/local/bin/wp
@@ -79,19 +79,19 @@ runs:
     - name: Install WordPress
       shell: bash
       run: |
-        CONTAINER=$(docker compose -f /tmp/wdx-compose.yml ps -q wordpress)
+        CONTAINER=$(docker compose -f /tmp/lps-compose.yml ps -q wordpress)
         # WP-CLI uses the internal port (80) to avoid HTTP requests failing
         # from inside the container where the external port is not accessible.
-        # WDX communicates via the external port stored in sites.json.
+        # LPS communicates via the external port stored in sites.json.
         docker exec "$CONTAINER" wp core install \
           --url="http://localhost" \
-          --title="WDX CI" \
+          --title="LPS CI" \
           --admin_user="admin" \
           --admin_password="admin" \
-          --admin_email="ci@wdx.dev" \
+          --admin_email="ci@lps.dev" \
           --skip-email \
           --allow-root
-        # Update siteurl/home to the external URL for WDX REST API calls
+        # Update siteurl/home to the external URL for LPS REST API calls
         docker exec "$CONTAINER" wp option update siteurl "http://localhost:${{ inputs.port }}" --allow-root
         docker exec "$CONTAINER" wp option update home "http://localhost:${{ inputs.port }}" --allow-root
 
@@ -99,8 +99,8 @@ runs:
       id: app-password
       shell: bash
       run: |
-        CONTAINER=$(docker compose -f /tmp/wdx-compose.yml ps -q wordpress)
-        APP_PASS=$(docker exec "$CONTAINER" wp user application-password create admin "WDX CI" \
+        CONTAINER=$(docker compose -f /tmp/lps-compose.yml ps -q wordpress)
+        APP_PASS=$(docker exec "$CONTAINER" wp user application-password create admin "LPS CI" \
           --porcelain \
           --allow-root)
         echo "value=$APP_PASS" >> $GITHUB_OUTPUT
@@ -110,24 +110,24 @@ runs:
       shell: bash
       run: echo "wp-url=http://localhost:${{ inputs.port }}" >> $GITHUB_OUTPUT
 
-    - name: Configure WDX
+    - name: Configure LPS
       shell: bash
       run: |
-        mkdir -p ~/.wdx
+        mkdir -p ~/.lps
         printf '{"sites":[{"id":"%s","url":"http://localhost:%s","username":"admin","app_password":"%s"}]}\n' \
           "${{ inputs.site-id }}" \
           "${{ inputs.port }}" \
           "${{ steps.app-password.outputs.value }}" \
-          > ~/.wdx/sites.json
+          > ~/.lps/sites.json
 
     - name: Warn if CI token missing
       shell: bash
       if: ${{ !inputs.token }}
       run: |
-        echo "::warning::No WDX token provided."
+        echo "::warning::No LPS token provided."
         echo "::warning::CI testing is free and unlimited — but deploying to real sites requires a token."
-        echo "::warning::Get your free token at https://wordpressdx.dev/token"
+        echo "::warning::Get your free token at https://loopress.dev/token"
 
-    - name: Install WDX CLI
+    - name: Install LPS CLI
       shell: bash
-      run: npm install -g wdx
+      run: npm install -g lps

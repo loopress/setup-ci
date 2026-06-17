@@ -1,23 +1,23 @@
-# WDX GitLab CI Template
-# Hosted by WDX — do not copy, reference via remote include
+# LPS GitLab CI Template
+# Hosted by LPS — do not copy, reference via remote include
 
-.wdx-bootstrap:
+.lps-bootstrap:
   image: docker:24
   services:
     - docker:24-dind
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
-    WDX_WP_VERSION: "latest"
-    WDX_WP_PORT: "8080"
+    LPS_WP_VERSION: "latest"
+    LPS_WP_PORT: "8080"
   before_script:
     - apk add --no-cache curl nodejs npm
     - |
-      cat > /tmp/wdx-compose.yml << EOF
+      cat > /tmp/lps-compose.yml << EOF
       services:
         mysql:
           image: mysql:8.0
           environment:
-            MYSQL_ROOT_PASSWORD: wdx
+            MYSQL_ROOT_PASSWORD: lps
             MYSQL_DATABASE: wordpress
           healthcheck:
             test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
@@ -25,7 +25,7 @@
             timeout: 5s
             retries: 12
         wordpress:
-          image: wordpress:${WDX_WP_VERSION}
+          image: wordpress:${LPS_WP_VERSION}
           depends_on:
             mysql:
               condition: service_healthy
@@ -33,13 +33,13 @@
             WORDPRESS_DB_HOST: mysql
             WORDPRESS_DB_NAME: wordpress
             WORDPRESS_DB_USER: root
-            WORDPRESS_DB_PASSWORD: wdx
+            WORDPRESS_DB_PASSWORD: lps
           ports:
-            - "${WDX_WP_PORT}:80"
+            - "${LPS_WP_PORT}:80"
       EOF
-    - docker compose -f /tmp/wdx-compose.yml up -d
-    - timeout 90 sh -c "until curl -so /dev/null --connect-timeout 5 http://localhost:${WDX_WP_PORT}/; do sleep 3; done"
-    - CONTAINER=$(docker compose -f /tmp/wdx-compose.yml ps -q wordpress)
+    - docker compose -f /tmp/lps-compose.yml up -d
+    - timeout 90 sh -c "until curl -so /dev/null --connect-timeout 5 http://localhost:${LPS_WP_PORT}/; do sleep 3; done"
+    - CONTAINER=$(docker compose -f /tmp/lps-compose.yml ps -q wordpress)
     - |
       docker exec "$CONTAINER" bash -c "
         curl -sO https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
@@ -47,33 +47,33 @@
       "
     - |
       docker exec "$CONTAINER" wp core install \
-        --url="http://localhost" --title="WDX CI" \
+        --url="http://localhost" --title="LPS CI" \
         --admin_user="admin" --admin_password="admin" \
-        --admin_email="ci@wdx.dev" --skip-email --allow-root
-    - docker exec "$CONTAINER" wp option update siteurl "http://localhost:${WDX_WP_PORT}" --allow-root
-    - docker exec "$CONTAINER" wp option update home "http://localhost:${WDX_WP_PORT}" --allow-root
+        --admin_email="ci@lps.dev" --skip-email --allow-root
+    - docker exec "$CONTAINER" wp option update siteurl "http://localhost:${LPS_WP_PORT}" --allow-root
+    - docker exec "$CONTAINER" wp option update home "http://localhost:${LPS_WP_PORT}" --allow-root
     - |
-      APP_PASS=$(docker exec "$CONTAINER" wp user application-password create admin "WDX CI" \
+      APP_PASS=$(docker exec "$CONTAINER" wp user application-password create admin "LPS CI" \
         --porcelain --allow-root)
-      mkdir -p ~/.wdx
+      mkdir -p ~/.lps
       printf '{"sites":[{"id":"ci","url":"http://localhost:%s","username":"admin","app_password":"%s"}]}\n' \
-        "$WDX_WP_PORT" "$APP_PASS" > ~/.wdx/sites.json
-    - npm install -g wdx
+        "$LPS_WP_PORT" "$APP_PASS" > ~/.lps/sites.json
+    - npm install -g lps
 
-.wdx-test:
-  extends: .wdx-bootstrap
+.lps-test:
+  extends: .lps-bootstrap
   script:
-    - wdx push
+    - lps push
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH
 
-.wdx-deploy:
+.lps-deploy:
   image: node:20-alpine
   variables:
-    WDX_SITE: "staging"
+    LPS_SITE: "staging"
   before_script:
-    - npm install -g wdx
+    - npm install -g lps
   script:
-    - wdx push --site $WDX_SITE
-    - wdx diff --site $WDX_SITE
+    - lps push --site $LPS_SITE
+    - lps diff --site $LPS_SITE
