@@ -1,10 +1,10 @@
-# LPS CircleCI Orb Definition
-# Published at: lps-dev/lps on CircleCI Orb Registry
+# Loopress CircleCI Orb Definition
+# Published at: loopress-dev/loopress on CircleCI Orb Registry
 
 version: 2.1
 
 description: >
-  Bootstrap a WordPress instance and apply LPS configuration.
+  Bootstrap a WordPress instance and apply Loopress configuration.
   https://loopress.dev
 
 display:
@@ -18,7 +18,7 @@ executors:
 
 commands:
   setup:
-    description: Bootstrap WordPress and apply LPS config
+    description: Bootstrap WordPress and apply Loopress config
     parameters:
       wp-version:
         type: string
@@ -28,87 +28,51 @@ commands:
         default: 8080
       token:
         type: env_var_name
-        default: LPS_TOKEN
+        default: LOOPRESS_TOKEN
     steps:
       - run:
-          name: Start WordPress stack
+          name: Download Loopress scripts
           command: |
-            cat > /tmp/lps-compose.yml << EOF
-            services:
-              mysql:
-                image: mysql:8.0
-                environment:
-                  MYSQL_ROOT_PASSWORD: lps
-                  MYSQL_DATABASE: wordpress
-                healthcheck:
-                  test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-                  interval: 5s
-                  timeout: 5s
-                  retries: 12
-              wordpress:
-                image: wordpress:<< parameters.wp-version >>
-                depends_on:
-                  mysql:
-                    condition: service_healthy
-                environment:
-                  WORDPRESS_DB_HOST: mysql
-                  WORDPRESS_DB_NAME: wordpress
-                  WORDPRESS_DB_USER: root
-                  WORDPRESS_DB_PASSWORD: lps
-                ports:
-                  - "<< parameters.wp-port >>:80"
-            EOF
-            docker compose -f /tmp/lps-compose.yml up -d
+            BASE_URL="https://raw.githubusercontent.com/loopress/setup-ci/v1"
+            curl -fsSL "$BASE_URL/docker/compose.yml" -o /tmp/loopress-compose.yml
+            curl -fsSL "$BASE_URL/scripts/start-wordpress.sh" -o /tmp/loopress-start.sh
+            curl -fsSL "$BASE_URL/scripts/setup-wordpress.sh" -o /tmp/loopress-setup.sh
+            curl -fsSL "$BASE_URL/scripts/setup-loopress.sh" -o /tmp/loopress-cli.sh
+            chmod +x /tmp/loopress-start.sh /tmp/loopress-setup.sh /tmp/loopress-cli.sh
       - run:
-          name: Wait for WordPress
-          command: |
-            timeout 90 bash -c \
-              'until curl -so /dev/null --connect-timeout 5 http://localhost:<< parameters.wp-port >>/; do sleep 3; done'
+          name: Start WordPress stack
+          environment:
+            LOOPRESS_WP_VERSION: << parameters.wp-version >>
+            LOOPRESS_WP_PORT: << parameters.wp-port >>
+          command: /tmp/loopress-start.sh
       - run:
           name: Install WordPress
-          command: |
-            CONTAINER=$(docker compose -f /tmp/lps-compose.yml ps -q wordpress)
-            docker exec "$CONTAINER" bash -c "
-              curl -sO https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-              chmod +x wp-cli.phar && mv wp-cli.phar /usr/local/bin/wp
-            "
-            docker exec "$CONTAINER" wp core install \
-              --url="http://localhost" --title="LPS CI" \
-              --admin_user="admin" --admin_password="admin" \
-              --admin_email="ci@lps.dev" --skip-email --allow-root
-            docker exec "$CONTAINER" wp option update siteurl "http://localhost:<< parameters.wp-port >>" --allow-root
-            docker exec "$CONTAINER" wp option update home "http://localhost:<< parameters.wp-port >>" --allow-root
-            APP_PASS=$(docker exec "$CONTAINER" wp user application-password create admin "LPS CI" \
-              --porcelain --allow-root)
-            mkdir -p ~/.lps
-            printf '{"sites":[{"id":"ci","url":"http://localhost:<< parameters.wp-port >>","username":"admin","app_password":"%s"}]}\n' \
-              "$APP_PASS" > ~/.lps/sites.json
+          environment:
+            LOOPRESS_WP_PORT: << parameters.wp-port >>
+          command: /tmp/loopress-setup.sh
       - run:
-          name: Install LPS CLI
-          command: npm install -g lps
-      - run:
-          name: Push LPS config
-          command: lps push
+          name: Install Loopress CLI
+          command: /tmp/loopress-cli.sh
 
   deploy:
-    description: Deploy LPS config to a real WordPress site
+    description: Deploy Loopress config to a real WordPress site
     parameters:
       site:
         type: string
         default: "staging"
       token:
         type: env_var_name
-        default: LPS_TOKEN
+        default: LOOPRESS_TOKEN
     steps:
       - run:
-          name: Install LPS CLI
-          command: npm install -g lps
+          name: Install Loopress CLI
+          command: npm install -g @loopress/cli
       - run:
-          name: Push LPS config
-          command: lps push --site << parameters.site >>
+          name: Push Loopress config
+          command: loopress push --site << parameters.site >>
       - run:
           name: Verify deploy
-          command: lps diff --site << parameters.site >>
+          command: loopress diff --site << parameters.site >>
 
 jobs:
   test:
