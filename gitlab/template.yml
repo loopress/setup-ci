@@ -9,6 +9,7 @@
     DOCKER_TLS_CERTDIR: "/certs"
     LOOPRESS_WP_VERSION: "latest"
     LOOPRESS_WP_PORT: "8080"
+    LOOPRESS_WP_HOST: "docker"
   before_script:
     - apk add --no-cache bash curl nodejs npm
     - |

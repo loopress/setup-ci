@@ -2,6 +2,7 @@
 set -euo pipefail
 
 WP_PORT="${LOOPRESS_WP_PORT:-8080}"
+WP_HOST="${LOOPRESS_WP_HOST:-localhost}"
 SITE_ID="${LOOPRESS_SITE_ID:-ci}"
 COMPOSE_FILE="${LOOPRESS_COMPOSE_FILE:-/tmp/loopress-compose.yml}"
 
@@ -23,12 +24,12 @@ docker exec "$CONTAINER" wp core install \
   --skip-email \
   --allow-root
 
-docker exec "$CONTAINER" wp option update siteurl "http://localhost:${WP_PORT}" --allow-root
-docker exec "$CONTAINER" wp option update home "http://localhost:${WP_PORT}" --allow-root
+docker exec "$CONTAINER" wp option update siteurl "http://${WP_HOST}:${WP_PORT}" --allow-root
+docker exec "$CONTAINER" wp option update home "http://${WP_HOST}:${WP_PORT}" --allow-root
 
 APP_PASSWORD=$(docker exec "$CONTAINER" wp user application-password create admin "Loopress CI" \
   --porcelain --allow-root)
 
 mkdir -p ~/.loopress
-printf '{"sites":[{"id":"%s","url":"http://localhost:%s","username":"admin","app_password":"%s"}]}\n' \
-  "$SITE_ID" "$WP_PORT" "$APP_PASSWORD" > ~/.loopress/sites.json
+printf '{"sites":[{"id":"%s","url":"http://%s:%s","username":"admin","app_password":"%s"}]}\n' \
+  "$SITE_ID" "$WP_HOST" "$WP_PORT" "$APP_PASSWORD" > ~/.loopress/sites.json
