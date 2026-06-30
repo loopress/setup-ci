@@ -30,6 +30,9 @@ docker exec "$CONTAINER" wp option update home "http://${WP_HOST}:${WP_PORT}" --
 APP_PASSWORD=$(docker exec "$CONTAINER" wp user application-password create admin "Loopress CI" \
   --porcelain --allow-root)
 
+ADDED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 mkdir -p ~/.loopress
-printf '{"sites":[{"id":"%s","url":"http://%s:%s","username":"admin","app_password":"%s"}]}\n' \
-  "$SITE_ID" "$WP_HOST" "$WP_PORT" "$APP_PASSWORD" > ~/.loopress/sites.json
+export SITE_ID WP_HOST WP_PORT APP_PASSWORD ADDED_AT
+envsubst < "$SCRIPT_DIR/../templates/loopress-config.json" > ~/.loopress/config.json

@@ -1,0 +1,18 @@
+{
+  "currentProject": "${SITE_ID}",
+  "projects": {
+    "${SITE_ID}": {
+      "addedAt": "${ADDED_AT}",
+      "currentEnv": "${SITE_ID}",
+      "environments": {
+        "${SITE_ID}": {
+          "addedAt": "${ADDED_AT}",
+          "name": "${SITE_ID}",
+          "token": "admin:${APP_PASSWORD}",
+          "url": "http://${WP_HOST}:${WP_PORT}"
+        }
+      },
+      "name": "${SITE_ID}"
+    }
+  }
+}
