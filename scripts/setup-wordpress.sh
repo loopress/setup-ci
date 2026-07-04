@@ -35,4 +35,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 mkdir -p ~/.loopress
 export SITE_ID WP_HOST WP_PORT APP_PASSWORD ADDED_AT
-envsubst < "$SCRIPT_DIR/../templates/loopress-config.json" > ~/.loopress/config.json
+# Restrict substitution to these variables only — a bare `envsubst` also expands any
+# other `$NAME` pattern it finds (e.g. the literal "$schema" JSON key) to an empty string.
+envsubst '${SITE_ID} ${WP_HOST} ${WP_PORT} ${APP_PASSWORD} ${ADDED_AT}' \
+  < "$SCRIPT_DIR/../templates/loopress-config.json" > ~/.loopress/config.json

@@ -1,0 +1,12 @@
+{
+  "name": "loopress-setup-ci",
+  "private": true,
+  "description": "Dev-only tooling to check that CI templates stay in sync with the Loopress CLI's config schemas.",
+  "devDependencies": {
+    "@loopress/cli": "^0.8.0",
+    "ajv-cli": "^5.0.0"
+  },
+  "scripts": {
+    "check:config-template": "bash scripts/check-config-template.sh"
+  }
+}

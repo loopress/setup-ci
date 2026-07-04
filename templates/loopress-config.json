@@ -1,13 +1,16 @@
 {
-  "currentProject": "${SITE_ID}",
+  "$schema": "https://loopress.dev/schema/global-config.json",
+  "currentProject": {
+    "env": "local",
+    "id": "${SITE_ID}"
+  },
   "projects": {
     "${SITE_ID}": {
       "addedAt": "${ADDED_AT}",
-      "currentEnv": "${SITE_ID}",
       "environments": {
-        "${SITE_ID}": {
+        "local": {
           "addedAt": "${ADDED_AT}",
-          "name": "${SITE_ID}",
+          "name": "local",
           "token": "admin:${APP_PASSWORD}",
           "url": "http://${WP_HOST}:${WP_PORT}"
         }
