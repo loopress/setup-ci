@@ -1,5 +1,4 @@
 {
-  "$schema": "https://loopress.dev/schema/global-config.json",
   "currentProject": {
     "env": "local",
     "id": "${SITE_ID}"
