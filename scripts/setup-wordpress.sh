@@ -54,9 +54,14 @@ APP_PASSWORD=$(docker exec "$CONTAINER" wp user application-password create admi
 ADDED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Callers that only fetch this script standalone (e.g. the GitLab/CircleCI templates
+# curl scripts/ into /tmp without their sibling templates/ directory) must set
+# LOOPRESS_CONFIG_TEMPLATE to where they downloaded loopress-config.json themselves.
+CONFIG_TEMPLATE="${LOOPRESS_CONFIG_TEMPLATE:-$SCRIPT_DIR/../templates/loopress-config.json}"
+
 mkdir -p ~/.loopress
 export SITE_ID WP_HOST WP_PORT APP_PASSWORD ADDED_AT
 # Restrict substitution to these variables only — a bare `envsubst` also expands any
 # other `$NAME` pattern it finds (e.g. the literal "$schema" JSON key) to an empty string.
 envsubst '${SITE_ID} ${WP_HOST} ${WP_PORT} ${APP_PASSWORD} ${ADDED_AT}' \
-  < "$SCRIPT_DIR/../templates/loopress-config.json" > ~/.loopress/config.json
+  < "$CONFIG_TEMPLATE" > ~/.loopress/config.json
