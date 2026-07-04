@@ -27,6 +27,22 @@ docker exec "$CONTAINER" wp core install \
 docker exec "$CONTAINER" wp option update siteurl "http://${WP_HOST}:${WP_PORT}" --allow-root
 docker exec "$CONTAINER" wp option update home "http://${WP_HOST}:${WP_PORT}" --allow-root
 
+# WPCode provides the `wpcode` post type that the Loopress plugin's REST snippet
+# endpoints read/write; the Loopress plugin provides the endpoints themselves.
+# Neither ships with WordPress core, so both must be installed explicitly or
+# `/wp-json/loopress/v1/wpcode/*` 404s on a fresh site.
+docker exec "$CONTAINER" wp plugin install insert-headers-and-footers --activate --allow-root
+
+LOOPRESS_PLUGIN_ZIP_URL=$(curl -s "https://api.github.com/repos/loopress/loopress/releases" \
+  | jq -r '[.[] | select(.tag_name | startswith("wordpress-plugin@"))][0].assets[] | select(.name == "loopress.zip") | .browser_download_url')
+
+if [ -z "$LOOPRESS_PLUGIN_ZIP_URL" ]; then
+  echo "Could not find a wordpress-plugin release asset on loopress/loopress" >&2
+  exit 1
+fi
+
+docker exec "$CONTAINER" wp plugin install "$LOOPRESS_PLUGIN_ZIP_URL" --activate --allow-root
+
 APP_PASSWORD=$(docker exec "$CONTAINER" wp user application-password create admin "Loopress CI" \
   --porcelain --allow-root)
 
