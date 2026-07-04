@@ -3,7 +3,7 @@
   "private": true,
   "description": "Dev-only tooling to check that CI templates stay in sync with the Loopress CLI's config schemas.",
   "devDependencies": {
-    "@loopress/cli": "^0.9.0",
+    "@loopress/cli": "^0.10.0",
     "ajv-cli": "^5.0.0"
   },
   "scripts": {
