@@ -27,6 +27,11 @@ docker exec "$CONTAINER" wp core install \
 docker exec "$CONTAINER" wp option update siteurl "http://${WP_HOST}:${WP_PORT}" --allow-root
 docker exec "$CONTAINER" wp option update home "http://${WP_HOST}:${WP_PORT}" --allow-root
 
+# WordPress only allows Application Passwords over HTTPS unless WP_ENVIRONMENT_TYPE is
+# 'local' (see wp_is_application_passwords_supported()). Without this, every request
+# authenticated with the app password below silently fails with a 401.
+docker exec "$CONTAINER" wp config set WP_ENVIRONMENT_TYPE local --allow-root
+
 # WPCode provides the `wpcode` post type that the Loopress plugin's REST snippet
 # endpoints read/write; the Loopress plugin provides the endpoints themselves.
 # Neither ships with WordPress core, so both must be installed explicitly or
