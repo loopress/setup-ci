@@ -9,8 +9,11 @@ if [ ! -f "$SCHEMA" ]; then
   exit 1
 fi
 
-RENDERED=$(mktemp)
-trap 'rm -f "$RENDERED"' EXIT
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TMP_DIR"' EXIT
+# ajv-cli picks its parser (JSON/YAML/JSON5) from the file extension, so the
+# rendered file needs a ".json" name — a bare `mktemp` file has none.
+RENDERED="$TMP_DIR/loopress-config.json"
 
 SITE_ID=ci ADDED_AT=2024-01-01T00:00:00Z APP_PASSWORD="xxxx xxxx xxxx xxxx xxxx xxxx" WP_HOST=localhost WP_PORT=8080 \
   envsubst '${SITE_ID} ${WP_HOST} ${WP_PORT} ${APP_PASSWORD} ${ADDED_AT}' \
