@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCHEMA="$SCRIPT_DIR/../node_modules/@loopress/cli/global-config.schema.json"
+SCHEMA="$SCRIPT_DIR/../node_modules/@loopress/cli/schemas/global-config.schema.json"
 
 if [ ! -f "$SCHEMA" ]; then
   echo "Schema not found at $SCHEMA. Run 'npm install' in setup-ci/ first." >&2
