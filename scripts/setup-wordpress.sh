@@ -58,6 +58,14 @@ docker exec "$CONTAINER" wp plugin install "$LOOPRESS_PLUGIN_ZIP_URL" --activate
 APP_PASSWORD=$(docker exec "$CONTAINER" wp user application-password create admin "Loopress CI" \
   --porcelain --allow-root)
 
+# Captures a working site (plugin active, app password already issued) so `restore-wordpress.sh`
+# can reset the database between groups of e2e tests without re-running the whole setup above.
+# Respawning the Docker stack per group is too slow, but leaving residual state between groups
+# (snippets created by one group leaking into the next) makes tests order-dependent and flaky.
+SNAPSHOT_PATH="${LOOPRESS_SNAPSHOT_PATH:-/tmp/loopress-snapshot-clean.sql}"
+docker exec "$CONTAINER" wp db export /tmp/loopress-snapshot-clean.sql --allow-root
+docker cp "$CONTAINER":/tmp/loopress-snapshot-clean.sql "$SNAPSHOT_PATH"
+
 ADDED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
