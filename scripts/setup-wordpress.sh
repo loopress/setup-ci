@@ -38,6 +38,13 @@ docker exec "$CONTAINER" wp config set WP_ENVIRONMENT_TYPE local --allow-root
 # `/wp-json/loopress/v1/wpcode/*` 404s on a fresh site.
 docker exec "$CONTAINER" wp plugin install insert-headers-and-footers --activate --allow-root
 
+# Installed but left inactive: this is the single-provider baseline the e2e suite expects.
+# The e2e/snippet-provider-conflict.spec.ts test activates it itself to exercise the case
+# where both snippet plugins are active at once; if it isn't installed here, that test's
+# "activate code-snippets" step silently no-ops (the plugin row doesn't exist to click),
+# and the multi-plugin conflict it's meant to trigger never happens.
+docker exec "$CONTAINER" wp plugin install code-snippets --allow-root
+
 LOOPRESS_PLUGIN_ZIP_URL=$(curl -s "https://api.github.com/repos/loopress/loopress/releases" \
   | jq -r '[.[] | select(.tag_name | startswith("wordpress-plugin@"))][0].assets[] | select(.name == "loopress.zip") | .browser_download_url')
 
