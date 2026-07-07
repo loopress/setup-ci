@@ -41,6 +41,7 @@ runs:
         LOOPRESS_WP_PORT: ${{ inputs.port }}
         LOOPRESS_SITE_ID: ${{ inputs.site-id }}
         LOOPRESS_COMPOSE_FILE: ${{ github.action_path }}/docker/compose.yml
+        GITHUB_TOKEN: ${{ github.token }}
       run: bash $GITHUB_ACTION_PATH/scripts/setup-wordpress.sh
 
     - name: Set outputs
