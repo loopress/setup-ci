@@ -1,0 +1,18 @@
+name: "Loopress Restore"
+description: "Reset WordPress to the clean snapshot captured by loopress/setup-ci, without respawning the Docker stack"
+
+branding:
+  icon: "refresh-cw"
+  color: "blue"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Restore WordPress snapshot
+      shell: bash
+      env:
+        # Resolves to the same docker/compose.yml the main action started the stack with, so
+        # `docker compose ps` below finds the container already running in this job rather than
+        # trying to start a new one.
+        LOOPRESS_COMPOSE_FILE: ${{ github.action_path }}/../docker/compose.yml
+      run: bash $GITHUB_ACTION_PATH/../scripts/restore-wordpress.sh
