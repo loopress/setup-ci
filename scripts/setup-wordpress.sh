@@ -15,6 +15,11 @@ docker exec "$CONTAINER" bash -c "
   # below (and 'wp db import' in restore-wordpress.sh, same container) shell out
   # to mysqldump/mysql.
   apt-get update -qq && apt-get install -y -qq default-mysql-client
+  # mysql:8.0 auto-generates a self-signed cert and the mariadb client we just
+  # installed verifies it by default, so mysqldump/mysql fail with 'self-signed
+  # certificate in certificate chain'. This DB is disposable and only reachable
+  # on the compose network, so skip verification rather than trust the cert.
+  printf '[client]\nssl-mode=DISABLED\n' > ~/.my.cnf
 "
 
 # WP-CLI uses the internal port (80) — the external port is not accessible from inside the container.
