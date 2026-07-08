@@ -15,11 +15,15 @@ docker exec "$CONTAINER" bash -c "
   # below (and 'wp db import' in restore-wordpress.sh, same container) shell out
   # to mysqldump/mysql.
   apt-get update -qq && apt-get install -y -qq default-mysql-client
-  # mysql:8.0 auto-generates a self-signed cert and the mariadb client we just
-  # installed verifies it by default, so mysqldump/mysql fail with 'self-signed
-  # certificate in certificate chain'. This DB is disposable and only reachable
-  # on the compose network, so skip verification rather than trust the cert.
-  printf '[client]\nssl-mode=DISABLED\n' > ~/.my.cnf
+  # mysql:8.0 auto-generates a self-signed cert and 'default-mysql-client' resolves to
+  # MariaDB's client tools, which default to requiring SSL and verifying that cert, so
+  # mysqldump/mysql fail with 'self-signed certificate in certificate chain'. MariaDB's
+  # mariadb-dump/mysql have no 'ssl-mode' option (that's a MySQL 8 client concept) — they
+  # error with 'unknown variable' on that syntax; the native way to opt out is 'ssl=0'.
+  # 'wp db export'/'wp db import' run their mysql commands with --no-defaults by default
+  # (so this file is ignored) unless called with --defaults, which both scripts do below.
+  # This DB is disposable and only reachable on the compose network, so skip TLS entirely.
+  printf '[client]\nssl=0\n' > ~/.my.cnf
 "
 
 # WP-CLI uses the internal port (80) — the external port is not accessible from inside the container.
@@ -72,7 +76,8 @@ APP_PASSWORD=$(docker exec "$CONTAINER" wp user application-password create admi
 # Respawning the Docker stack per group is too slow, but leaving residual state between groups
 # (snippets created by one group leaking into the next) makes tests order-dependent and flaky.
 SNAPSHOT_PATH="${LOOPRESS_SNAPSHOT_PATH:-/tmp/loopress-snapshot-clean.sql}"
-docker exec "$CONTAINER" wp db export /tmp/loopress-snapshot-clean.sql --allow-root
+# --defaults: load ~/.my.cnf (ssl=0) written above — see the comment there.
+docker exec "$CONTAINER" wp db export /tmp/loopress-snapshot-clean.sql --allow-root --defaults
 docker cp "$CONTAINER":/tmp/loopress-snapshot-clean.sql "$SNAPSHOT_PATH"
 
 ADDED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")

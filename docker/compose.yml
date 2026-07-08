@@ -9,6 +9,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
+      # A fresh mysql:8.0 data dir occasionally takes longer than 60s (12 * 5s) to
+      # initialize on a loaded CI runner. Failures during start_period don't count
+      # against retries, so a slow cold start no longer flips this to unhealthy and
+      # fails 'docker compose up' (wordpress depends_on: condition: service_healthy).
+      start_period: 30s
 
   wordpress:
     image: wordpress:${LOOPRESS_WP_VERSION:-latest}

@@ -15,4 +15,8 @@ fi
 # the clean, working state setup-wordpress.sh captured, undoing anything the previous group of
 # e2e tests changed (created/edited snippets, plugin toggles, etc.) in one shot.
 docker cp "$SNAPSHOT_PATH" "$CONTAINER":/tmp/loopress-snapshot-clean.sql
-docker exec "$CONTAINER" wp db import /tmp/loopress-snapshot-clean.sql --allow-root
+# --defaults: load ~/.my.cnf (ssl=0), written by setup-wordpress.sh in the same container —
+# see the comment there. Without it, 'wp db import' shells out to mysql with --no-defaults,
+# which ignores that file, and MariaDB's client tools default to requiring (and verifying)
+# SSL against mysql:8.0's self-signed cert.
+docker exec "$CONTAINER" wp db import /tmp/loopress-snapshot-clean.sql --allow-root --defaults
