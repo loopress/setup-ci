@@ -25,9 +25,10 @@ spec:
       curl -fsSL "$BASE_URL/docker/compose.yml" -o /tmp/loopress-compose.yml
       curl -fsSL "$BASE_URL/scripts/start-wordpress.sh" -o /tmp/loopress-start.sh
       curl -fsSL "$BASE_URL/scripts/setup-wordpress.sh" -o /tmp/loopress-setup.sh
+      curl -fsSL "$BASE_URL/scripts/restore-wordpress.sh" -o /tmp/loopress-restore.sh
       curl -fsSL "$BASE_URL/scripts/setup-loopress.sh" -o /tmp/loopress-cli.sh
       curl -fsSL "$BASE_URL/templates/loopress-config.json" -o "$LOOPRESS_CONFIG_TEMPLATE"
-      chmod +x /tmp/loopress-start.sh /tmp/loopress-setup.sh /tmp/loopress-cli.sh
+      chmod +x /tmp/loopress-start.sh /tmp/loopress-setup.sh /tmp/loopress-restore.sh /tmp/loopress-cli.sh
     - /tmp/loopress-start.sh
     - /tmp/loopress-setup.sh
     - /tmp/loopress-cli.sh

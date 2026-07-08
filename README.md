@@ -38,6 +38,33 @@ steps:
     token: ${{ secrets.LOOPRESS_TOKEN }}
 ```
 
+### Restoring between groups of tests
+
+`loopress/setup-ci` takes a snapshot of the database as its last setup step. If your e2e suite
+runs several independent groups of tests and respawning the whole Docker stack between them is
+too slow, call `loopress/setup-ci/restore` to reset WordPress back to that clean snapshot instead.
+It's a separate action so it never re-triggers the boot/install steps, it's always something you
+call explicitly, in your own workflow:
+
+```yaml
+steps:
+  - uses: actions/checkout@v4
+  - uses: loopress/setup-ci@v1
+
+  - name: Happy path tests
+    run: npx playwright test tests/e2e/happy-path.spec.ts
+
+  - uses: loopress/setup-ci/restore@v1
+
+  - name: Conflict tests
+    run: npx playwright test tests/e2e/conflicts.spec.ts
+```
+
+The snapshot path defaults to `/tmp/loopress-snapshot-clean.sql` and doesn't need configuring for
+most cases. To override it, set `LOOPRESS_SNAPSHOT_PATH` in the job or step `env:` around both the
+setup and restore steps, no input is needed since composite action steps inherit env vars set at
+the job or workflow level.
+
 ## GitLab CI
 
 Reference the template via remote include. Do not copy the file: reference it so you always get the latest version.
@@ -68,6 +95,21 @@ deploy:
 
 - `.loopress-test`: boots WordPress and runs `loopress push`. Triggers on branches and merge requests.
 - `.loopress-deploy`: deploys to a real site with `loopress push` then verifies with `loopress diff`.
+
+### Restoring between groups of tests
+
+A GitLab job is a single isolated container, so restoring between groups of tests happens as an
+extra step in the same job's `script:`, not a separate job. `.loopress-bootstrap` already
+downloads `/tmp/loopress-restore.sh` alongside the other scripts, call it directly between groups:
+
+```yaml
+test:
+  extends: .loopress-bootstrap
+  script:
+    - npx playwright test tests/e2e/happy-path.spec.ts
+    - /tmp/loopress-restore.sh
+    - npx playwright test tests/e2e/conflicts.spec.ts
+```
 
 ## CircleCI
 
@@ -102,6 +144,20 @@ workflows:
 | `site` | string | Site ID | `staging` |
 | `token` | env_var_name | Env var holding the cloud token | `LOOPRESS_TOKEN` |
 
+### Restoring between groups of tests
+
+A CircleCI job is a single executor, so restoring between groups of tests happens as an extra
+step in the same job, after `setup` has already run once (it's what downloads the restore
+script and takes the snapshot):
+
+```yaml
+- loopress/setup:
+    wp-version: "6.5"
+- run: npx playwright test tests/e2e/happy-path.spec.ts
+- loopress/restore
+- run: npx playwright test tests/e2e/conflicts.spec.ts
+```
+
 ## Token
 
 CI testing is free and unlimited: no token needed to run `loopress push` against a local WordPress instance.
@@ -114,5 +170,6 @@ A token is required only when deploying to a real site. Get one at https://conso
 2. Waits for WordPress to respond (up to 90 seconds)
 3. Installs WP-CLI inside the WordPress container
 4. Runs `wp core install` and creates an application password
-5. Writes `~/.loopress/sites.json` with the site credentials
-6. Installs `@loopress/cli`
+5. Exports a clean database snapshot for `loopress/setup-ci/restore` to reset to later
+6. Writes `~/.loopress/sites.json` with the site credentials
+7. Installs `@loopress/cli`
