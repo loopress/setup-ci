@@ -11,6 +11,10 @@ CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps -q wordpress)
 docker exec "$CONTAINER" bash -c "
   curl -sO https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
   chmod +x wp-cli.phar && mv wp-cli.phar /usr/local/bin/wp
+  # The wordpress image ships PHP+Apache only, no mysql-client, but 'wp db export'
+  # below (and 'wp db import' in restore-wordpress.sh, same container) shell out
+  # to mysqldump/mysql.
+  apt-get update -qq && apt-get install -y -qq default-mysql-client
 "
 
 # WP-CLI uses the internal port (80) — the external port is not accessible from inside the container.
