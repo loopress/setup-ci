@@ -88,9 +88,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # LOOPRESS_CONFIG_TEMPLATE to where they downloaded loopress-config.json themselves.
 CONFIG_TEMPLATE="${LOOPRESS_CONFIG_TEMPLATE:-$SCRIPT_DIR/../templates/loopress-config.json}"
 
-mkdir -p ~/.loopress
+# @loopress/cli now sources its config dir from oclif's native, per-platform default
+# (oclif.dirname "loopress" in its package.json) instead of a hardcoded ~/.loopress, so the
+# seed file must land wherever `lps` will actually look for it: $XDG_CONFIG_HOME/loopress, or
+# ~/.config/loopress if that's unset (see @oclif/core's Config#dir('config')).
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/loopress"
+
+mkdir -p "$CONFIG_DIR"
 export SITE_ID WP_HOST WP_PORT APP_PASSWORD ADDED_AT
 # Restrict substitution to these variables only — a bare `envsubst` also expands any
 # other `$NAME` pattern it finds (e.g. the literal "$schema" JSON key) to an empty string.
 envsubst '${SITE_ID} ${WP_HOST} ${WP_PORT} ${APP_PASSWORD} ${ADDED_AT}' \
-  < "$CONFIG_TEMPLATE" > ~/.loopress/config.json
+  < "$CONFIG_TEMPLATE" > "$CONFIG_DIR/config.json"

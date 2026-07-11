@@ -171,5 +171,5 @@ A token is required only when deploying to a real site. Get one at https://conso
 3. Installs WP-CLI inside the WordPress container
 4. Runs `wp core install` and creates an application password
 5. Exports a clean database snapshot for `loopress/setup-ci/restore` to reset to later
-6. Writes `~/.loopress/sites.json` with the site credentials
+6. Writes `$XDG_CONFIG_HOME/loopress/config.json` (or `~/.config/loopress/config.json`) with the site credentials
 7. Installs `@loopress/cli`
