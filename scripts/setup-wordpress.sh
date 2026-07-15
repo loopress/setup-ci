@@ -58,15 +58,15 @@ docker exec "$CONTAINER" wp plugin install insert-headers-and-footers --activate
 # and the multi-plugin conflict it's meant to trigger never happens.
 docker exec "$CONTAINER" wp plugin install code-snippets --allow-root
 
-LOOPRESS_PLUGIN_ZIP_URL=$(curl -s "https://api.github.com/repos/loopress/loopress/releases" \
-  | jq -r '[.[] | select(.tag_name | startswith("wordpress-plugin@"))][0].assets[] | select(.name == "loopress.zip") | .browser_download_url')
+LOOPRESS_FULL_PLUGIN_ZIP_URL=$(curl -s "https://api.github.com/repos/loopress/loopress/releases" \
+  | jq -r '[.[] | select(.tag_name | startswith("wordpress-plugin@"))][0].assets[] | select(.name == "loopress-full.zip") | .browser_download_url')
 
-if [ -z "$LOOPRESS_PLUGIN_ZIP_URL" ]; then
+if [ -z "$LOOPRESS_FULL_PLUGIN_ZIP_URL" ]; then
   echo "Could not find a wordpress-plugin release asset on loopress/loopress" >&2
   exit 1
 fi
 
-docker exec "$CONTAINER" wp plugin install "$LOOPRESS_PLUGIN_ZIP_URL" --activate --allow-root
+docker exec "$CONTAINER" wp plugin install "$LOOPRESS_FULL_PLUGIN_ZIP_URL" --activate --allow-root
 
 APP_PASSWORD=$(docker exec "$CONTAINER" wp user application-password create admin "Loopress CI" \
   --porcelain --allow-root)
