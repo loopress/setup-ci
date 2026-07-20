@@ -58,6 +58,9 @@ docker exec "$CONTAINER" wp plugin install insert-headers-and-footers --activate
 # and the multi-plugin conflict it's meant to trigger never happens.
 docker exec "$CONTAINER" wp plugin install code-snippets --allow-root
 
+# Installed ACF plugin
+docker exec "$CONTAINER" wp plugin install advanced-custom-fields --activate --allow-root
+
 LOOPRESS_FULL_PLUGIN_ZIP_URL=$(curl -s "https://api.github.com/repos/loopress/loopress/releases" \
   | jq -r '[.[] | select(.tag_name | startswith("wordpress-plugin@"))][0].assets[] | select(.name == "loopress-full.zip") | .browser_download_url')
 
