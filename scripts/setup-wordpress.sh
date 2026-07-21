@@ -61,17 +61,21 @@ docker exec "$CONTAINER" wp plugin install code-snippets --allow-root
 # Installed ACF plugin
 docker exec "$CONTAINER" wp plugin install advanced-custom-fields --activate --allow-root
 
-# RankMath provides the `loopress/v1/rankmath/*` endpoints' data source (postmeta, the
-# `rank-math-options-titles` option, and the redirects table below); the Loopress plugin
-# provides the endpoints themselves. e2e/rankmath-sync.spec.ts exercises this.
+# RankMath and Yoast SEO both back the `loopress/v1/seo/*` endpoints (postmeta, the titles/meta
+# option, and RankMath's redirects table below); the Loopress plugin provides the endpoints
+# themselves, arbitrating between whichever one is active. e2e/seo-sync.spec.ts exercises both,
+# each describe block deactivating one to test the other, since SeoService refuses to guess
+# which is authoritative if both are active at once (mirrors Code Snippets vs WPCode above).
 docker exec "$CONTAINER" wp plugin install seo-by-rank-math --activate --allow-root
+docker exec "$CONTAINER" wp plugin install wordpress-seo --activate --allow-root
 
 # RankMath ships its Redirections feature as a module that's disabled by default (RankMath >
 # Dashboard > Modules); its DB table is only created once the module is turned on. Enabling
 # the option alone doesn't create the table, RankMath does that from its own admin-side
 # module-toggle handler, so it's recreated explicitly here the same way RankMath's own
 # "Database Tools > Recreate tables" action does. Discovered by hand while writing
-# rankmath-sync.spec.ts, see RankMathService::requireRedirectionsModuleEnabled().
+# e2e/seo-sync.spec.ts, see RankMathService::requireRedirectionsModuleEnabled(). Yoast has no
+# free equivalent to enable, its redirect manager is Premium-only and isn't covered here.
 docker exec "$CONTAINER" wp eval '
   update_option("rank_math_modules", array_unique(array_merge(get_option("rank_math_modules", []), ["redirections"])));
   \RankMath\Installer::create_tables(["redirections"]);
