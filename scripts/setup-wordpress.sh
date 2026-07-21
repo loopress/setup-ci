@@ -61,6 +61,22 @@ docker exec "$CONTAINER" wp plugin install code-snippets --allow-root
 # Installed ACF plugin
 docker exec "$CONTAINER" wp plugin install advanced-custom-fields --activate --allow-root
 
+# RankMath provides the `loopress/v1/rankmath/*` endpoints' data source (postmeta, the
+# `rank-math-options-titles` option, and the redirects table below); the Loopress plugin
+# provides the endpoints themselves. e2e/rankmath-sync.spec.ts exercises this.
+docker exec "$CONTAINER" wp plugin install seo-by-rank-math --activate --allow-root
+
+# RankMath ships its Redirections feature as a module that's disabled by default (RankMath >
+# Dashboard > Modules); its DB table is only created once the module is turned on. Enabling
+# the option alone doesn't create the table, RankMath does that from its own admin-side
+# module-toggle handler, so it's recreated explicitly here the same way RankMath's own
+# "Database Tools > Recreate tables" action does. Discovered by hand while writing
+# rankmath-sync.spec.ts, see RankMathService::requireRedirectionsModuleEnabled().
+docker exec "$CONTAINER" wp eval '
+  update_option("rank_math_modules", array_unique(array_merge(get_option("rank_math_modules", []), ["redirections"])));
+  \RankMath\Installer::create_tables(["redirections"]);
+' --allow-root
+
 LOOPRESS_FULL_PLUGIN_ZIP_URL=$(curl -s "https://api.github.com/repos/loopress/loopress/releases" \
   | jq -r '[.[] | select(.tag_name | startswith("wordpress-plugin@"))][0].assets[] | select(.name == "loopress-full.zip") | .browser_download_url')
 
