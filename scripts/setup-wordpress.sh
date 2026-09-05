@@ -26,6 +26,16 @@ docker exec "$CONTAINER" bash -c "
   printf '[client]\nssl=0\n' > ~/.my.cnf
 "
 
+# Every wp-cli call in this script runs via 'docker exec' with no '-u', i.e. as root.
+# Apache (and every Loopress REST write under wp-content/loopress/) serves requests
+# as www-data instead, so any wp-content path root touches first is left unwritable
+# to it. This has started tripping composer-sync/app-sync/api-routes-sync e2e specs
+# with "mkdir(): Permission denied" under wp-content/loopress, apparently because the
+# wordpress:latest image no longer (or no longer reliably) chowns the whole tree to
+# www-data by the time these scripts run. Force it explicitly rather than depend on
+# the base image's own entrypoint behavior.
+docker exec "$CONTAINER" chown -R www-data:www-data /var/www/html/wp-content
+
 # WP-CLI uses the internal port (80) — the external port is not accessible from inside the container.
 # siteurl/home are updated separately to the external port for Loopress REST API calls.
 docker exec "$CONTAINER" wp core install \
