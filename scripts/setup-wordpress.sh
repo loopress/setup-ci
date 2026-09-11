@@ -71,6 +71,11 @@ docker exec "$CONTAINER" wp plugin install code-snippets --allow-root
 # Installed ACF plugin
 docker exec "$CONTAINER" wp plugin install advanced-custom-fields --activate --allow-root
 
+# WPForms backs the `loopress/v1/forms` endpoints (Loopress provides the endpoints, WPForms
+# provides the storage). Doesn't ship with WordPress core, so must be installed and activated
+# explicitly, same as ACF above, matching the wpforms-lite slug e2e/form-sync.spec.ts uses.
+docker exec "$CONTAINER" wp plugin install wpforms-lite --activate --allow-root
+
 # RankMath and Yoast SEO both back the `loopress/v1/seo/*` endpoints (postmeta, the titles/meta
 # option, and RankMath's redirects table below); the Loopress plugin provides the endpoints
 # themselves, arbitrating between whichever one is active. e2e/seo-sync.spec.ts exercises both,
