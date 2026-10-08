@@ -1,5 +1,5 @@
 # Loopress GitLab CI Template
-# Hosted by Loopress — do not copy, reference via remote include
+# Hosted by Loopress: do not copy, reference via remote include
 
 spec:
   inputs:
@@ -36,7 +36,7 @@ spec:
 .loopress-test:
   extends: .loopress-bootstrap
   script:
-    - loopress push
+    - lps push
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH
@@ -44,9 +44,16 @@ spec:
 .loopress-deploy:
   image: node:20-alpine
   variables:
-    LOOPRESS_SITE: "staging"
+    LOOPRESS_ENV: "staging"
   before_script:
     - npm install -g @loopress/cli
+    # LOOPRESS_CONFIG is a File-type CI/CD variable holding the config.json of a machine where
+    # the project was configured (`lps project config`): it carries the real site's URL and
+    # credentials, which a fresh deploy container has no other way to know.
+    - |
+      CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/loopress"
+      mkdir -p "$CONFIG_DIR"
+      cp "$LOOPRESS_CONFIG" "$CONFIG_DIR/config.json"
   script:
-    - loopress push --site $LOOPRESS_SITE
-    - loopress diff --site $LOOPRESS_SITE
+    - lps push --env "$LOOPRESS_ENV" --yes
+    - lps diff --env "$LOOPRESS_ENV"

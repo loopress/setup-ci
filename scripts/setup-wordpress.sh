@@ -8,23 +8,9 @@ COMPOSE_FILE="${LOOPRESS_COMPOSE_FILE:-/tmp/loopress-compose.yml}"
 
 CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps -q wordpress)
 
-docker exec "$CONTAINER" bash -c "
-  curl -sO https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-  chmod +x wp-cli.phar && mv wp-cli.phar /usr/local/bin/wp
-  # The wordpress image ships PHP+Apache only, no mysql-client, but 'wp db export'
-  # below (and 'wp db import' in restore-wordpress.sh, same container) shell out
-  # to mysqldump/mysql.
-  apt-get update -qq && apt-get install -y -qq default-mysql-client
-  # mysql:8.0 auto-generates a self-signed cert and 'default-mysql-client' resolves to
-  # MariaDB's client tools, which default to requiring SSL and verifying that cert, so
-  # mysqldump/mysql fail with 'self-signed certificate in certificate chain'. MariaDB's
-  # mariadb-dump/mysql have no 'ssl-mode' option (that's a MySQL 8 client concept) — they
-  # error with 'unknown variable' on that syntax; the native way to opt out is 'ssl=0'.
-  # 'wp db export'/'wp db import' run their mysql commands with --no-defaults by default
-  # (so this file is ignored) unless called with --defaults, which both scripts do below.
-  # This DB is disposable and only reachable on the compose network, so skip TLS entirely.
-  printf '[client]\nssl=0\n' > ~/.my.cnf
-"
+docker exec "$CONTAINER" curl -fsSL -o /usr/local/bin/wp \
+  https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+docker exec "$CONTAINER" chmod +x /usr/local/bin/wp
 
 # Every wp-cli call in this script runs via 'docker exec' with no '-u', i.e. as root.
 # Apache (and every Loopress REST write under wp-content/loopress/) serves requests
@@ -36,7 +22,7 @@ docker exec "$CONTAINER" bash -c "
 # the base image's own entrypoint behavior.
 docker exec "$CONTAINER" chown -R www-data:www-data /var/www/html/wp-content
 
-# WP-CLI uses the internal port (80) — the external port is not accessible from inside the container.
+# WP-CLI uses the internal port (80): the external port is not accessible from inside the container.
 # siteurl/home are updated separately to the external port for Loopress REST API calls.
 docker exec "$CONTAINER" wp core install \
   --url="http://localhost" \
@@ -91,7 +77,10 @@ docker exec "$CONTAINER" wp eval '
   \RankMath\Installer::create_tables(["redirections"]);
 ' --allow-root
 
-LOOPRESS_FULL_PLUGIN_ZIP_URL=$(curl -s "https://api.github.com/repos/loopress/loopress/releases" \
+# Authenticated when a token is available (the GitHub action passes github.token): anonymous
+# calls share a 60 requests/hour limit per IP, which shared CI runners regularly exhaust.
+LOOPRESS_FULL_PLUGIN_ZIP_URL=$(curl -fsS ${GITHUB_TOKEN:+-H "Authorization: Bearer $GITHUB_TOKEN"} \
+  "https://api.github.com/repos/loopress/loopress/releases" \
   | jq -r '[.[] | select(.tag_name | startswith("wordpress-plugin@"))][0].assets[] | select(.name == "loopress-full.zip") | .browser_download_url')
 
 if [ -z "$LOOPRESS_FULL_PLUGIN_ZIP_URL" ]; then
@@ -109,14 +98,15 @@ APP_PASSWORD=$(docker exec "$CONTAINER" wp user application-password create admi
 # Respawning the Docker stack per group is too slow, but leaving residual state between groups
 # (snippets created by one group leaking into the next) makes tests order-dependent and flaky.
 SNAPSHOT_PATH="${LOOPRESS_SNAPSHOT_PATH:-/tmp/loopress-snapshot-clean.sql}"
-# --defaults: load ~/.my.cnf (ssl=0) written above — see the comment there.
-docker exec "$CONTAINER" wp db export /tmp/loopress-snapshot-clean.sql --allow-root --defaults
-docker cp "$CONTAINER":/tmp/loopress-snapshot-clean.sql "$SNAPSHOT_PATH"
+# Dumped from the mysql container itself: it ships the client tools, so the wordpress container
+# needs no mysql client installed (and no TLS workaround for mysql:8.0's self-signed cert).
+docker compose -f "$COMPOSE_FILE" exec -T -e MYSQL_PWD=loopress mysql \
+  mysqldump -uroot wordpress > "$SNAPSHOT_PATH"
 
 ADDED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Callers that only fetch this script standalone (e.g. the GitLab/CircleCI templates
+# Callers that only fetch this script standalone (e.g. the GitLab template
 # curl scripts/ into /tmp without their sibling templates/ directory) must set
 # LOOPRESS_CONFIG_TEMPLATE to where they downloaded loopress-config.json themselves.
 CONFIG_TEMPLATE="${LOOPRESS_CONFIG_TEMPLATE:-$SCRIPT_DIR/../templates/loopress-config.json}"
@@ -129,7 +119,7 @@ CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/loopress"
 
 mkdir -p "$CONFIG_DIR"
 export SITE_ID WP_HOST WP_PORT APP_PASSWORD ADDED_AT
-# Restrict substitution to these variables only — a bare `envsubst` also expands any
+# Restrict substitution to these variables only: a bare `envsubst` also expands any
 # other `$NAME` pattern it finds (e.g. the literal "$schema" JSON key) to an empty string.
 envsubst '${SITE_ID} ${WP_HOST} ${WP_PORT} ${APP_PASSWORD} ${ADDED_AT}' \
   < "$CONFIG_TEMPLATE" > "$CONFIG_DIR/config.json"

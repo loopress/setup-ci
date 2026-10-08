@@ -2,7 +2,7 @@
 
 Bootstrap a full WordPress environment in CI with a single step. No configuration required.
 
-Starts MySQL and WordPress via Docker, installs WP-CLI, creates the REST credentials, and installs the Loopress CLI. Your pipeline can run `loopress push` immediately after.
+Starts MySQL and WordPress via Docker, installs WP-CLI, creates the REST credentials, and installs the Loopress CLI. Your pipeline can run `lps push` immediately after.
 
 ## GitHub Actions
 
@@ -10,7 +10,7 @@ Starts MySQL and WordPress via Docker, installs WP-CLI, creates the REST credent
 steps:
   - uses: actions/checkout@v4
   - uses: loopress/setup-ci@v1
-  - run: loopress push
+  - run: lps push
 ```
 
 ### Inputs
@@ -20,7 +20,7 @@ steps:
 | `wp-version` | WordPress version | `latest` |
 | `site-id` | Loopress site ID | `ci` |
 | `port` | WordPress port on the runner | `8080` |
-| `token` | Loopress cloud token | |
+| `token` | Loopress cloud token, exported as `LOOPRESS_TOKEN` for the following steps | |
 
 ### Output
 
@@ -79,7 +79,7 @@ test:
 deploy:
   extends: .loopress-deploy
   variables:
-    LOOPRESS_SITE: "production"
+    LOOPRESS_ENV: "production"
 ```
 
 ### Variables
@@ -88,13 +88,14 @@ deploy:
 |---|---|---|
 | `LOOPRESS_WP_VERSION` | WordPress version | `latest` |
 | `LOOPRESS_WP_PORT` | WordPress port | `8080` |
-| `LOOPRESS_SITE` | Site ID for deploy jobs | `staging` |
+| `LOOPRESS_ENV` | Environment deploy jobs push to (`--env`) | `staging` |
+| `LOOPRESS_CONFIG` | File-type variable holding your `config.json`, required by deploy jobs | |
 | `LOOPRESS_TOKEN` | Loopress cloud token | |
 
 ### Available templates
 
-- `.loopress-test`: boots WordPress and runs `loopress push`. Triggers on branches and merge requests.
-- `.loopress-deploy`: deploys to a real site with `loopress push` then verifies with `loopress diff`.
+- `.loopress-test`: boots WordPress and runs `lps push`. Triggers on branches and merge requests.
+- `.loopress-deploy`: deploys to a real site with `lps push --env $LOOPRESS_ENV --yes` then verifies with `lps diff`. The site's URL and credentials come from `LOOPRESS_CONFIG`: configure the project once on your machine (`lps project config`), then store that `config.json` as a File-type CI/CD variable.
 
 ### Restoring between groups of tests
 
@@ -111,65 +112,17 @@ test:
     - npx playwright test tests/e2e/conflicts.spec.ts
 ```
 
-## CircleCI
-
-```yaml
-version: 2.1
-
-orbs:
-  loopress: loopress-dev/loopress@1
-
-workflows:
-  main:
-    jobs:
-      - loopress/test
-      - loopress/deploy:
-          site: production
-          requires:
-            - loopress/test
-```
-
-### `setup` command parameters
-
-| Parameter | Type | Description | Default |
-|---|---|---|---|
-| `wp-version` | string | WordPress version | `latest` |
-| `wp-port` | integer | WordPress port | `8080` |
-| `token` | env_var_name | Env var holding the cloud token | `LOOPRESS_TOKEN` |
-
-### `deploy` command parameters
-
-| Parameter | Type | Description | Default |
-|---|---|---|---|
-| `site` | string | Site ID | `staging` |
-| `token` | env_var_name | Env var holding the cloud token | `LOOPRESS_TOKEN` |
-
-### Restoring between groups of tests
-
-A CircleCI job is a single executor, so restoring between groups of tests happens as an extra
-step in the same job, after `setup` has already run once (it's what downloads the restore
-script and takes the snapshot):
-
-```yaml
-- loopress/setup:
-    wp-version: "6.5"
-- run: npx playwright test tests/e2e/happy-path.spec.ts
-- loopress/restore
-- run: npx playwright test tests/e2e/conflicts.spec.ts
-```
-
 ## Token
 
-CI testing is free and unlimited: no token needed to run `loopress push` against a local WordPress instance.
+CI testing is free and unlimited: no token needed to run `lps push` against a local WordPress instance.
 
 A token is required only when deploying to a real site. Get one at https://console.loopress.dev/tokens.
 
 ## How it works
 
-1. Starts MySQL 8 and WordPress via Docker Compose
-2. Waits for WordPress to respond (up to 90 seconds)
-3. Installs WP-CLI inside the WordPress container
-4. Runs `wp core install` and creates an application password
-5. Exports a clean database snapshot for `loopress/setup-ci/restore` to reset to later
-6. Writes `$XDG_CONFIG_HOME/loopress/config.json` (or `~/.config/loopress/config.json`) with the site credentials
-7. Installs `@loopress/cli`
+1. Starts MySQL 8 and WordPress via Docker Compose, waiting until both are healthy
+2. Installs WP-CLI inside the WordPress container
+3. Runs `wp core install` and creates an application password
+4. Dumps a clean database snapshot (from the MySQL container) for `loopress/setup-ci/restore` to reset to later
+5. Writes `$XDG_CONFIG_HOME/loopress/config.json` (or `~/.config/loopress/config.json`) with the site credentials
+6. Installs `@loopress/cli`

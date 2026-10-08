@@ -7,7 +7,7 @@ branding:
 
 inputs:
   token:
-    description: "Loopress cloud token (not required for CI testing — only needed for deploying to real sites)"
+    description: "Loopress cloud token, exported as LOOPRESS_TOKEN for later steps. Not needed for CI testing, only for deploying to real sites."
     required: false
   wp-version:
     description: "WordPress version"
@@ -49,13 +49,18 @@ runs:
       shell: bash
       run: echo "wp-url=http://localhost:${{ inputs.port }}" >> $GITHUB_OUTPUT
 
-    - name: Warn if token missing
+    # The CLI reads LOOPRESS_TOKEN from the environment, and a composite step's own `env:` never
+    # reaches the caller's later steps, so it's exported through GITHUB_ENV instead.
+    - name: Export token
       shell: bash
-      if: ${{ !inputs.token }}
+      env:
+        TOKEN: ${{ inputs.token }}
       run: |
-        echo "::warning::No Loopress token provided."
-        echo "::warning::CI testing is free and unlimited — but deploying to real sites requires a token."
-        echo "::warning::Get your free token at https://loopress.dev/token"
+        if [ -n "$TOKEN" ]; then
+          echo "LOOPRESS_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+        else
+          echo "::warning::No Loopress token provided. CI testing is free and unlimited, but deploying to real sites requires a token: https://console.loopress.dev/tokens"
+        fi
 
     - name: Install Loopress CLI
       shell: bash
