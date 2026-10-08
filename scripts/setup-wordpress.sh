@@ -41,41 +41,9 @@ docker exec "$CONTAINER" wp option update home "http://${WP_HOST}:${WP_PORT}" --
 # authenticated with the app password below silently fails with a 401.
 docker exec "$CONTAINER" wp config set WP_ENVIRONMENT_TYPE local --allow-root
 
-# WPCode provides the `wpcode` post type that the Loopress plugin's REST snippet
-# endpoints read/write; the Loopress plugin provides the endpoints themselves.
-# Neither ships with WordPress core, so both must be installed explicitly or
-# `/wp-json/loopress/v1/wpcode/*` 404s on a fresh site.
-docker exec "$CONTAINER" wp plugin install insert-headers-and-footers --activate --allow-root
-
-# Installed but left inactive: this is the single-provider baseline the e2e suite expects.
-# The e2e/snippet-provider-conflict.spec.ts test activates it itself to exercise the case
-# where both snippet plugins are active at once; if it isn't installed here, that test's
-# "activate code-snippets" step silently no-ops (the plugin row doesn't exist to click),
-# and the multi-plugin conflict it's meant to trigger never happens.
-docker exec "$CONTAINER" wp plugin install code-snippets --allow-root
-
-# Installed ACF plugin
-docker exec "$CONTAINER" wp plugin install advanced-custom-fields --activate --allow-root
-
-# RankMath and Yoast SEO both back the `loopress/v1/seo/*` endpoints (postmeta, the titles/meta
-# option, and RankMath's redirects table below); the Loopress plugin provides the endpoints
-# themselves, arbitrating between whichever one is active. e2e/seo-sync.spec.ts exercises both,
-# each describe block deactivating one to test the other, since SeoService refuses to guess
-# which is authoritative if both are active at once (mirrors Code Snippets vs WPCode above).
-docker exec "$CONTAINER" wp plugin install seo-by-rank-math --activate --allow-root
-docker exec "$CONTAINER" wp plugin install wordpress-seo --activate --allow-root
-
-# RankMath ships its Redirections feature as a module that's disabled by default (RankMath >
-# Dashboard > Modules); its DB table is only created once the module is turned on. Enabling
-# the option alone doesn't create the table, RankMath does that from its own admin-side
-# module-toggle handler, so it's recreated explicitly here the same way RankMath's own
-# "Database Tools > Recreate tables" action does. Discovered by hand while writing
-# e2e/seo-sync.spec.ts, see RankMathService::requireRedirectionsModuleEnabled(). Yoast has no
-# free equivalent to enable, its redirect manager is Premium-only and isn't covered here.
-docker exec "$CONTAINER" wp eval '
-  update_option("rank_math_modules", array_unique(array_merge(get_option("rank_math_modules", []), ["redirections"])));
-  \RankMath\Installer::create_tables(["redirections"]);
-' --allow-root
+# Only Loopress Full is installed: any other plugin a project depends on (WPCode, ACF, WPForms,
+# an SEO plugin...) belongs in its loopress.json, and `lps push` installs it before anything else.
+# Preinstalling them here would make every CI site differ from the real one it stands in for.
 
 # Authenticated when a token is available (the GitHub action passes github.token): anonymous
 # calls share a 60 requests/hour limit per IP, which shared CI runners regularly exhaust.

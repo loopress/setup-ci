@@ -112,6 +112,10 @@ test:
     - npx playwright test tests/e2e/conflicts.spec.ts
 ```
 
+## Plugins
+
+Only Loopress Full is preinstalled. Declare the other plugins your project needs (WPCode, ACF, WPForms, an SEO plugin...) in `loopress.json`: `lps push` installs them before pushing anything else, so the CI site matches your real one.
+
 ## Token
 
 CI testing is free and unlimited: no token needed to run `lps push` against a local WordPress instance.
@@ -122,7 +126,7 @@ A token is required only when deploying to a real site. Get one at https://conso
 
 1. Starts MySQL 8 and WordPress via Docker Compose, waiting until both are healthy
 2. Installs WP-CLI inside the WordPress container
-3. Runs `wp core install` and creates an application password
+3. Runs `wp core install`, installs the latest Loopress Full release, and creates an application password
 4. Dumps a clean database snapshot (from the MySQL container) for `loopress/setup-ci/restore` to reset to later
 5. Writes `$XDG_CONFIG_HOME/loopress/config.json` (or `~/.config/loopress/config.json`) with the site credentials
 6. Installs `@loopress/cli`
