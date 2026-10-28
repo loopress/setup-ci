@@ -57,6 +57,9 @@ if [ -z "$LOOPRESS_FULL_PLUGIN_ZIP_URL" ]; then
 fi
 
 docker exec "$CONTAINER" wp plugin install "$LOOPRESS_FULL_PLUGIN_ZIP_URL" --activate --allow-root
+# A throwaway CI site isn't an active install: without this, every run would ping
+# api.loopress.dev with a fresh install id. Before the snapshot below, so restores keep it.
+docker exec "$CONTAINER" wp option update loopress_usage_stats_enabled 0 --allow-root
 
 APP_PASSWORD=$(docker exec "$CONTAINER" wp user application-password create admin "Loopress CI" \
   --porcelain --allow-root)
