@@ -9,7 +9,7 @@ Starts MySQL and WordPress via Docker, installs WP-CLI, creates the REST credent
 ```yaml
 steps:
   - uses: actions/checkout@v4
-  - uses: loopress/setup-ci@v1
+  - uses: loopress/setup-ci@main
   - run: lps push
 ```
 
@@ -31,7 +31,7 @@ steps:
 ### Full example
 
 ```yaml
-- uses: loopress/setup-ci@v1
+- uses: loopress/setup-ci@main
   with:
     wp-version: "6.5"
     port: "9090"
@@ -49,12 +49,12 @@ call explicitly, in your own workflow:
 ```yaml
 steps:
   - uses: actions/checkout@v4
-  - uses: loopress/setup-ci@v1
+  - uses: loopress/setup-ci@main
 
   - name: Happy path tests
     run: npx playwright test tests/e2e/happy-path.spec.ts
 
-  - uses: loopress/setup-ci/restore@v1
+  - uses: loopress/setup-ci/restore@main
 
   - name: Conflict tests
     run: npx playwright test tests/e2e/conflicts.spec.ts
