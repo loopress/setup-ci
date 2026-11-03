@@ -7,7 +7,7 @@ branding:
 
 inputs:
   token:
-    description: "Loopress cloud token, exported as LOOPRESS_TOKEN for later steps. Not needed for CI testing, only for deploying to real sites."
+    description: "Loopress cloud token, exported as LOOPRESS_TOKEN for later steps. Optional: no token is required to push, in CI or to real sites. Only used by best-effort cloud features."
     required: false
   wp-version:
     description: "WordPress version"
@@ -58,8 +58,6 @@ runs:
       run: |
         if [ -n "$TOKEN" ]; then
           echo "LOOPRESS_TOKEN=$TOKEN" >> "$GITHUB_ENV"
-        else
-          echo "::warning::No Loopress token provided. CI testing is free and unlimited, but deploying to real sites requires a token: https://console.loopress.dev/tokens"
         fi
 
     - name: Install Loopress CLI

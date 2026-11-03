@@ -118,9 +118,7 @@ Only Loopress Full is preinstalled. Declare the other plugins your project needs
 
 ## Token
 
-CI testing is free and unlimited: no token needed to run `lps push` against a local WordPress instance.
-
-A token is required only when deploying to a real site. Get one at https://console.loopress.dev/tokens.
+No token is required to push, in CI or to real sites. `LOOPRESS_TOKEN` is read only by best-effort cloud features (deployment record, publish). Get one at https://console.loopress.dev/tokens.
 
 ## How it works
 

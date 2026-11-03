@@ -54,6 +54,7 @@ spec:
       CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/loopress"
       mkdir -p "$CONFIG_DIR"
       cp "$LOOPRESS_CONFIG" "$CONFIG_DIR/config.json"
+  # No LOOPRESS_TOKEN is required to push; it is only read by best-effort cloud features.
   script:
     - lps push --env "$LOOPRESS_ENV" --yes
     - lps diff --env "$LOOPRESS_ENV"
