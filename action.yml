@@ -18,6 +18,9 @@ inputs:
   port:
     description: "WordPress port on the runner"
     default: "8080"
+  install-cli:
+    description: "Install @loopress/cli globally (npm install -g). Set to false when the CLI is already available, e.g. built from the branch under test."
+    default: "true"
 
 outputs:
   wp-url:
@@ -62,4 +65,6 @@ runs:
 
     - name: Install Loopress CLI
       shell: bash
+      env:
+        LOOPRESS_INSTALL_CLI: ${{ inputs.install-cli }}
       run: bash $GITHUB_ACTION_PATH/scripts/setup-loopress.sh
