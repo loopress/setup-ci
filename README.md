@@ -20,6 +20,7 @@ steps:
 | `wp-version` | WordPress version | `latest` |
 | `site-id` | Loopress site ID | `ci` |
 | `port` | WordPress port on the runner | `8080` |
+| `install-cli` | Install `@loopress/cli` globally. Set to `false` to skip it (saves about 11 s) when the CLI is already available | `true` |
 | `token` | Loopress cloud token, exported as `LOOPRESS_TOKEN` for the following steps | |
 
 ### Output
@@ -88,6 +89,7 @@ deploy:
 |---|---|---|
 | `LOOPRESS_WP_VERSION` | WordPress version | `latest` |
 | `LOOPRESS_WP_PORT` | WordPress port | `8080` |
+| `LOOPRESS_INSTALL_CLI` | Set to `false` to skip `npm install -g @loopress/cli` | `true` |
 | `LOOPRESS_ENV` | Environment deploy jobs push to (`--env`) | `staging` |
 | `LOOPRESS_CONFIG` | File-type variable holding your `config.json`, required by deploy jobs | |
 | `LOOPRESS_TOKEN` | Loopress cloud token | |
@@ -127,4 +129,4 @@ No token is required to push, in CI or to real sites. `LOOPRESS_TOKEN` is read o
 3. Runs `wp core install`, installs the latest Loopress Full release, and creates an application password
 4. Dumps a clean database snapshot (from the MySQL container) for `loopress/setup-ci/restore` to reset to later
 5. Writes `$XDG_CONFIG_HOME/loopress/config.json` (or `~/.config/loopress/config.json`) with the site credentials
-6. Installs `@loopress/cli`
+6. Installs `@loopress/cli` (skipped when `install-cli` is `false`)
