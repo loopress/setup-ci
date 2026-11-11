@@ -97,7 +97,7 @@ deploy:
 ### Available templates
 
 - `.loopress-test`: boots WordPress and runs `lps push`. Triggers on branches and merge requests.
-- `.loopress-deploy`: deploys to a real site with `lps push --env $LOOPRESS_ENV --yes` then verifies with `lps diff`. The site's URL and credentials come from `LOOPRESS_CONFIG`: configure the project once on your machine (`lps project config`), then store the export of that one environment as a File-type CI/CD variable. See the [CI documentation](https://docs.loopress.dev/ci/) for the export command.
+- `.loopress-deploy`: deploys to a real site with `lps push --env $LOOPRESS_ENV --yes` then verifies with `lps diff`. The site's URL and credentials come from `LOOPRESS_CONFIG`: configure the project once on your machine (`lps project config`), then store a copy of your `~/.loopress/config.json` reduced to that one project and that one environment (same shape as [`templates/loopress-config.json`](templates/loopress-config.json): `currentProject`, `projects.<id>.environments.<name>` with its `url` and `token`) as a File-type CI/CD variable.
 
 ### Restoring between groups of tests
 

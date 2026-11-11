@@ -9,9 +9,9 @@ spec:
 ---
 
 .loopress-bootstrap:
-  image: docker:24
+  image: docker:28
   services:
-    - docker:24-dind
+    - docker:28-dind
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
     LOOPRESS_WP_VERSION: "latest"
@@ -22,7 +22,7 @@ spec:
     LOOPRESS_INSTALL_CLI: "true"
   before_script:
     - apk add --no-cache bash curl jq gettext nodejs npm
-    # The CLI requires Node >=22: the Node version comes from the Alpine release of the docker image.
+    # The CLI requires Node >=22: the Node version comes from the Alpine release of the docker image (docker:28 is Alpine 3.22, Node 22).
     - |
       NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
       if [ "$NODE_MAJOR" -lt 22 ]; then
