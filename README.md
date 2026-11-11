@@ -91,13 +91,13 @@ deploy:
 | `LOOPRESS_WP_PORT` | WordPress port | `8080` |
 | `LOOPRESS_INSTALL_CLI` | Set to `false` to skip `npm install -g @loopress/cli` | `true` |
 | `LOOPRESS_ENV` | Environment deploy jobs push to (`--env`) | `staging` |
-| `LOOPRESS_CONFIG` | File-type variable holding your `config.json`, required by deploy jobs | |
+| `LOOPRESS_CONFIG` | File-type variable holding the export of one environment's config (not your whole `config.json`), required by deploy jobs | |
 | `LOOPRESS_TOKEN` | Loopress cloud token | |
 
 ### Available templates
 
 - `.loopress-test`: boots WordPress and runs `lps push`. Triggers on branches and merge requests.
-- `.loopress-deploy`: deploys to a real site with `lps push --env $LOOPRESS_ENV --yes` then verifies with `lps diff`. The site's URL and credentials come from `LOOPRESS_CONFIG`: configure the project once on your machine (`lps project config`), then store that `config.json` as a File-type CI/CD variable.
+- `.loopress-deploy`: deploys to a real site with `lps push --env $LOOPRESS_ENV --yes` then verifies with `lps diff`. The site's URL and credentials come from `LOOPRESS_CONFIG`: configure the project once on your machine (`lps project config`), then store a copy of your `~/.loopress/config.json` reduced to that one project and that one environment (same shape as [`templates/loopress-config.json`](templates/loopress-config.json): `currentProject`, `projects.<id>.environments.<name>` with its `url` and `token`) as a File-type CI/CD variable.
 
 ### Restoring between groups of tests
 
