@@ -22,6 +22,13 @@ spec:
     LOOPRESS_INSTALL_CLI: "true"
   before_script:
     - apk add --no-cache bash curl jq gettext nodejs npm
+    # The CLI requires Node >=22: the Node version comes from the Alpine release of the docker image.
+    - |
+      NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
+      if [ "$NODE_MAJOR" -lt 22 ]; then
+        echo "Node $NODE_MAJOR is too old, @loopress/cli needs Node >=22. Use a newer docker image." >&2
+        exit 1
+      fi
     - |
       BASE_URL="https://raw.githubusercontent.com/loopress/setup-ci/$[[ inputs.version ]]"
       curl -fsSL "$BASE_URL/docker/compose.yml" -o /tmp/loopress-compose.yml
@@ -44,15 +51,15 @@ spec:
     - if: $CI_COMMIT_BRANCH
 
 .loopress-deploy:
-  image: node:20-alpine
+  image: node:24-alpine
   variables:
     LOOPRESS_ENV: "staging"
     # Set to "false" to skip `npm install -g @loopress/cli`
     LOOPRESS_INSTALL_CLI: "true"
   before_script:
     - '[ "$LOOPRESS_INSTALL_CLI" = "false" ] || npm install -g @loopress/cli'
-    # LOOPRESS_CONFIG is a File-type CI/CD variable holding the config.json of a machine where
-    # the project was configured (`lps project config`): it carries the real site's URL and
+    # LOOPRESS_CONFIG is a File-type CI/CD variable holding the config.json export of one
+    # environment (see https://docs.loopress.dev/ci/): it carries the real site's URL and
     # credentials, which a fresh deploy container has no other way to know.
     - |
       CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/loopress"
