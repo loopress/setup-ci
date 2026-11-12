@@ -52,11 +52,17 @@ spec:
 
 .loopress-deploy:
   image: node:24-alpine
+  # Two pipelines never deploy to the same environment at once: the guard of the second one runs
+  # after the first deploy landed.
+  resource_group: loopress-$LOOPRESS_ENV
   variables:
     LOOPRESS_ENV: "staging"
     # Set to "false" to skip `npm install -g @loopress/cli`
     LOOPRESS_INSTALL_CLI: "true"
+    # The drift guard needs the previous commit
+    GIT_DEPTH: "0"
   before_script:
+    - apk add --no-cache bash curl git jq
     - '[ "$LOOPRESS_INSTALL_CLI" = "false" ] || npm install -g @loopress/cli'
     # LOOPRESS_CONFIG is a File-type CI/CD variable holding the config.json export of one
     # environment (see https://docs.loopress.dev/ci/): it carries the real site's URL and
@@ -65,7 +71,28 @@ spec:
       CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/loopress"
       mkdir -p "$CONFIG_DIR"
       cp "$LOOPRESS_CONFIG" "$CONFIG_DIR/config.json"
+    - curl -fsSL "https://raw.githubusercontent.com/loopress/setup-ci/$[[ inputs.version ]]/scripts/drift-guard.sh" -o /tmp/loopress-drift-guard.sh
   # No LOOPRESS_TOKEN is required to push; it is only read by best-effort cloud features.
   script:
+    # Fails when a wp-admin edit would be overwritten. LOOPRESS_SKIP_DRIFT_GUARD=1 skips it.
+    - bash /tmp/loopress-drift-guard.sh "$LOOPRESS_ENV" "$CI_COMMIT_BEFORE_SHA"
     - lps push --env "$LOOPRESS_ENV" --yes
     - lps diff --env "$LOOPRESS_ENV"
+
+# On merge requests: what the change would do to the environment. Informs, never blocks.
+.loopress-preview:
+  image: node:24-alpine
+  variables:
+    LOOPRESS_ENV: "staging"
+    LOOPRESS_INSTALL_CLI: "true"
+  before_script:
+    - '[ "$LOOPRESS_INSTALL_CLI" = "false" ] || npm install -g @loopress/cli'
+    - |
+      CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/loopress"
+      mkdir -p "$CONFIG_DIR"
+      cp "$LOOPRESS_CONFIG" "$CONFIG_DIR/config.json"
+  script:
+    # Exits non-zero when there is a difference: the preview informs, it does not fail.
+    - lps diff --env "$LOOPRESS_ENV" --json || true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
