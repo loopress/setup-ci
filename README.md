@@ -93,11 +93,28 @@ deploy:
 | `LOOPRESS_ENV` | Environment deploy jobs push to (`--env`) | `staging` |
 | `LOOPRESS_CONFIG` | File-type variable holding the export of one environment's config (not your whole `config.json`), required by deploy jobs | |
 | `LOOPRESS_TOKEN` | Loopress cloud token | |
+| `LOOPRESS_SKIP_DRIFT_GUARD` | Set to `1` to skip the pre-deploy drift guard for one run | |
 
 ### Available templates
 
 - `.loopress-test`: boots WordPress and runs `lps push`. Triggers on branches and merge requests.
-- `.loopress-deploy`: deploys to a real site with `lps push --env $LOOPRESS_ENV --yes` then verifies with `lps diff`. The site's URL and credentials come from `LOOPRESS_CONFIG`: configure the project once on your machine (`lps project config`), then store a copy of your `~/.loopress/config.json` reduced to that one project and that one environment (same shape as [`templates/loopress-config.json`](templates/loopress-config.json): `currentProject`, `projects.<id>.environments.<name>` with its `url` and `token`) as a File-type CI/CD variable.
+- `.loopress-deploy`: deploys to a real site: drift guard, `lps push --env $LOOPRESS_ENV --yes`, then `lps diff` to verify. The site's URL and credentials come from `LOOPRESS_CONFIG`: configure the project once on your machine (`lps project config`), then store a copy of your `~/.loopress/config.json` reduced to that one project and that one environment (same shape as [`templates/loopress-config.json`](templates/loopress-config.json): `currentProject`, `projects.<id>.environments.<name>` with its `url` and `token`) as a File-type CI/CD variable. It uses `resource_group: loopress-$LOOPRESS_ENV`, so two pipelines never deploy to the same environment at once.
+- `.loopress-preview`: on merge requests, `lps diff --env $LOOPRESS_ENV --json` prints what the change would do to the environment. It never fails and posts no comment; it needs only `LOOPRESS_CONFIG`.
+
+```yaml
+preview:
+  extends: .loopress-preview
+  variables:
+    LOOPRESS_ENV: "production"
+```
+
+### Drift guard
+
+Before pushing, `scripts/drift-guard.sh` fails the deploy when it would overwrite an edit made on the site outside the repo. A CI push has no previous snapshot, so the guard compares the site with the previous commit (`$CI_COMMIT_BEFORE_SHA`, checked out in a temporary `git worktree`) and with the commit being deployed, and blocks only on ids that differ from both. The message names them: `lps pull` them into the repo first.
+
+- No previous commit (first push, new branch) or one that cannot be fetched: the guard is skipped with a warning.
+- A comparison that is inconclusive only warns.
+- It assumes the previous commit was deployed: after a failed or skipped deploy it can raise a false alarm. Set the CI variable `LOOPRESS_SKIP_DRIFT_GUARD=1` to skip it for one run.
 
 ### Restoring between groups of tests
 
@@ -113,6 +130,50 @@ test:
     - /tmp/loopress-restore.sh
     - npx playwright test tests/e2e/conflicts.spec.ts
 ```
+
+## GitHub Actions deploy
+
+Same order as the GitLab template: guard, push, verify. `fetch-depth: 0` gives the guard the previous commit (`github.event.before`), and `concurrency` keeps two runs from deploying to the same environment at once.
+
+```yaml
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: loopress-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install -g @loopress/cli
+      - name: Restore site credentials
+        env:
+          LOOPRESS_CONFIG: ${{ secrets.LOOPRESS_CONFIG }}
+        run: |
+          mkdir -p ~/.config/loopress
+          printf '%s' "$LOOPRESS_CONFIG" > ~/.config/loopress/config.json
+      - name: Drift guard
+        env:
+          LOOPRESS_SKIP_DRIFT_GUARD: ${{ vars.LOOPRESS_SKIP_DRIFT_GUARD }}
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/loopress/setup-ci/v1/scripts/drift-guard.sh -o /tmp/drift-guard.sh
+          bash /tmp/drift-guard.sh production "${{ github.event.before }}"
+      - run: lps push --env production --yes
+      - run: lps diff --env production
+```
+
+A merge request or pull request preview is one step: `lps diff --env production --json || true`.
 
 ## Plugins
 
