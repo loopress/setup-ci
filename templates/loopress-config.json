@@ -1,6 +1,5 @@
 {
   "currentProject": {
-    "env": "local",
     "id": "${SITE_ID}"
   },
   "projects": {
