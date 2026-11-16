@@ -1,6 +1,5 @@
 {
   "currentProject": {
-    "env": "local",
     "id": "${SITE_ID}"
   },
   "projects": {
@@ -11,6 +10,7 @@
           "addedAt": "${ADDED_AT}",
           "name": "local",
           "token": "admin:${APP_PASSWORD}",
+          "type": "local",
           "url": "http://${WP_HOST}:${WP_PORT}"
         }
       },
