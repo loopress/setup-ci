@@ -20,3 +20,12 @@ SITE_ID=ci ADDED_AT=2024-01-01T00:00:00Z APP_PASSWORD="xxxx xxxx xxxx xxxx xxxx 
   < "$SCRIPT_DIR/../templates/loopress-config.json" > "$RENDERED"
 
 npx --yes ajv-cli validate -s "$SCHEMA" -d "$RENDERED" --strict=true
+
+# The CLI refuses an environment without a "type" (assertTyped), but its schema
+# keeps the field optional for hand-written configs, so the validation above
+# passes without it. Fail here rather than in users' CI.
+UNTYPED=$(jq -r '[.projects[].environments | to_entries[] | select((.value.type // "") == "") | .key] | join(", ")' "$RENDERED")
+if [ -n "$UNTYPED" ]; then
+  echo "Environment(s) without a type in templates/loopress-config.json: $UNTYPED" >&2
+  exit 1
+fi
