@@ -12,16 +12,6 @@ docker exec "$CONTAINER" curl -fsSL -o /usr/local/bin/wp \
   https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
 docker exec "$CONTAINER" chmod +x /usr/local/bin/wp
 
-# Every wp-cli call in this script runs via 'docker exec' with no '-u', i.e. as root.
-# Apache (and every Loopress REST write under wp-content/loopress/) serves requests
-# as www-data instead, so any wp-content path root touches first is left unwritable
-# to it. This has started tripping composer-sync/app-sync/api-routes-sync e2e specs
-# with "mkdir(): Permission denied" under wp-content/loopress, apparently because the
-# wordpress:latest image no longer (or no longer reliably) chowns the whole tree to
-# www-data by the time these scripts run. Force it explicitly rather than depend on
-# the base image's own entrypoint behavior.
-docker exec "$CONTAINER" chown -R www-data:www-data /var/www/html/wp-content
-
 # WP-CLI uses the internal port (80): the external port is not accessible from inside the container.
 # siteurl/home are updated separately to the external port for Loopress REST API calls.
 docker exec "$CONTAINER" wp core install \
@@ -63,6 +53,14 @@ docker exec "$CONTAINER" wp option update loopress_usage_stats_enabled 0 --allow
 
 APP_PASSWORD=$(docker exec "$CONTAINER" wp user application-password create admin "Loopress CI" \
   --porcelain --allow-root)
+
+# Every wp-cli call above runs via 'docker exec' with no '-u', i.e. as root, while Apache (and
+# every Loopress REST write under wp-content/loopress/) serves requests as www-data. Whatever
+# those calls created under wp-content is root's: plugin installs, and wp-content/loopress/
+# itself, which Loopress Full creates once it is active and wp-cli boots WordPress with it.
+# Hence after the last of them, not before the first: run first, it left wp-content/loopress/
+# root-owned and every `lps composer push` answered 500 ("Cannot rename ... Permission denied").
+docker exec "$CONTAINER" chown -R www-data:www-data /var/www/html/wp-content
 
 # Captures a working site (plugin active, app password already issued) so `restore-wordpress.sh`
 # can reset the database between groups of e2e tests without re-running the whole setup above.
