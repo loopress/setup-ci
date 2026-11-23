@@ -19,6 +19,12 @@ if [ -n "${LOOPRESS_SKIP_DRIFT_GUARD:-}" ]; then
   exit 0
 fi
 
+# Fail closed: an outside edit must never be overwritten without an explicit flag.
+if ! command -v jq >/dev/null 2>&1; then
+  warn "jq not found, install it or set LOOPRESS_SKIP_DRIFT_GUARD=1 to deploy without the guard."
+  exit 1
+fi
+
 if [ -z "$BASE" ] || [[ "$BASE" =~ ^0+$ ]]; then
   warn "no previous commit (first push or new branch), skipping."
   exit 0
@@ -46,8 +52,10 @@ BEFORE_CODE=$?
 lps diff --env "$ENV_NAME" --json >"$WORK/after.json" 2>"$WORK/after.err"
 AFTER_CODE=$?
 
-if { [ "$BEFORE_CODE" -ne 0 ] && [ "$BEFORE_CODE" -ne 1 ]; } || { [ "$AFTER_CODE" -ne 0 ] && [ "$AFTER_CODE" -ne 1 ]; } \
-  || ! jq -e . "$WORK/before.json" >/dev/null 2>&1 || ! jq -e . "$WORK/after.json" >/dev/null 2>&1; then
+# Exit 2 means some resource is in error (its arrays are empty, the others are still compared).
+if [ "$BEFORE_CODE" -gt 2 ] || [ "$AFTER_CODE" -gt 2 ] \
+  || ! jq -e '.resources | type == "object"' "$WORK/before.json" >/dev/null 2>&1 \
+  || ! jq -e '.resources | type == "object"' "$WORK/after.json" >/dev/null 2>&1; then
   warn "comparison inconclusive (exit $BEFORE_CODE and $AFTER_CODE), not blocking."
   exit 0
 fi
@@ -57,10 +65,11 @@ fi
 
 # Ids present on the site that differ from the compared files: changed, or only on the site.
 # Ids missing on the site are ignored, pushing over a deletion loses nothing.
+# shellcheck disable=SC2016
 IDS='.resources | to_entries[] | .key as $r | ((.value.changed[]? | .id), (.value.removed[]?)) | "\($r)/\(.)"'
-jq -r "$IDS" "$WORK/before.json" | sort -u >"$WORK/before.ids"
-jq -r "$IDS" "$WORK/after.json" | sort -u >"$WORK/after.ids"
-BLOCKING="$(comm -12 "$WORK/before.ids" "$WORK/after.ids")"
+jq -r "$IDS" "$WORK/before.json" | LC_ALL=C sort -u >"$WORK/before.ids"
+jq -r "$IDS" "$WORK/after.json" | LC_ALL=C sort -u >"$WORK/after.ids"
+BLOCKING="$(LC_ALL=C comm -12 "$WORK/before.ids" "$WORK/after.ids")"
 
 if [ -n "$BLOCKING" ]; then
   echo "drift guard: $ENV_NAME has edits made outside the repo that this deploy would overwrite:" >&2
