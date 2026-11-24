@@ -72,7 +72,7 @@ Reference the template via remote include. Do not copy the file: reference it so
 
 ```yaml
 include:
-  - remote: 'https://raw.githubusercontent.com/loopress/setup-ci/v1/gitlab/template.yml'
+  - remote: 'https://raw.githubusercontent.com/loopress/setup-ci/main/gitlab/template.yml'
 
 test:
   extends: .loopress-test
